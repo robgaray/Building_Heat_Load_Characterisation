@@ -1,0 +1,679 @@
+---
+title: "Heat Load Analysis"
+author: "Roberto Garay Martinez"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+This R project performs the analysis of the heat load patterns of a building
+
+The sample data provided is a 1-year data for a multi-rise building connected to the District Heating Network in Tartu (Estonia). The data consists of hourly values of heat load, ambient temperature and solar radiation over an horizontal plane. The data sources are: GREN EESTI (heat load) and the UNIVERSITY OF TARTU (weather data)
+
+Many inspection routines are available in this notebook. Some of them are inactive for conciseness, but can be uncomented and used by the reader.
+
+# Initiation 
+
+``` {r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Get the working directory. This is specific to each computer. Indicates where the R project is stored locally All other file routes will be built in relation to this
+
+``` {r initiation, include=FALSE}
+WD<-getwd()
+
+# Load libraries
+{
+  library(lubridate)
+  library(GA)
+  library(Metrics)
+  library(extrafont)
+  font_import()
+  library(ggplot2)
+  library(hrbrthemes)
+  hrbrthemes::import_roboto_condensed()
+}
+
+# load functions
+{
+  files.source = list.files(paste(WD,
+                                  "/functions",
+                                  sep="")
+  )
+  for (i in 1:length(files.source))
+  {
+    source(paste(getwd(),
+                 "/functions/",
+                 files.source[i],sep="")
+    )  
+  }
+  rm(files.source, i)  
+}
+
+# Load data files
+{
+  ## List all files
+  files.data = list.files(paste(WD,
+                                "/data",
+                                sep="")
+  )
+  
+  ## Select data file to load
+  Dat <- files.data[1]  
+}
+
+## Read the data into a dataset
+{
+  Dat <- read.csv(paste(getwd(),
+                        "/data/",
+                        Dat,
+                        sep=""),
+                  sep=";")
+  
+  rm(files.data)
+}
+
+
+# formating of data frame
+{
+  attach(Dat)
+  Dat$date<- paste(Year,
+                   Month, 
+                   Day_Month, 
+                   Hour_Day)
+  Dat$date<- as.POSIXct(Dat$date,
+                        tz = "GMT",
+                        "%Y %m %d %H")
+  detach(Dat)
+  
+  STRING_date<-"date"
+  VEC_vars<-c("Holiday",
+              "Temperature", 
+              "Solar.Irradiation", 
+              "Power")
+  
+  
+  Dat<-RG_Date_Marks (Dat,
+                      STRING_date,
+                      VEC_vars)
+}
+
+rm(STRING_date, VEC_vars)
+
+# Keep record of the dataset
+Dat0<-Dat
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Dat0,"Dat0.csv")
+setwd(WD)
+```
+
+
+# Data Inspection
+Execution not strictly required
+
+``` {r data inspection}
+  names(Dat)
+  head(Dat)
+  # tail(Dat)
+  # summary(Dat)
+  
+  # Power vs time
+  var<-"Power"
+  week_list=c(1, 20)
+  month_list=c()
+  
+  RG_inspect_data(Dat,var, week_list, month_list)
+  
+  # Temperature vs time
+  var<-"Temperature"
+  week_list=c()
+  month_list=c(1,7)
+  
+  RG_inspect_data(Dat, var, week_list, month_list)
+  
+  # Solar Irradiation vs time
+  var<-"Solar.Irradiation"
+  week_list=c(1,20)
+  month_list=c()
+  
+  RG_inspect_data(Dat, var, week_list, month_list)
+  
+  # Power vs Temperature
+  var<-c("Temperature", "Power")
+  week_list=c()
+  month_list=c(1,4,7)
+  
+  RG_inspect_data(Dat, var, week_list, month_list)
+  
+  # Solar Irradiation vs Temperature
+  var<-c("Temperature","Solar.Irradiation")
+  week_list=c()
+  month_list=c()
+  
+  RG_inspect_data(Dat, var, week_list, month_list)
+  
+  
+  # Heat Map Hour_week/Week_year
+  RG_HeatMap(Dat[,
+                 c("DATE_hour_week",
+                   "DATE_week_year",
+                   "Power")
+  ])
+  
+  # Summary, Power & Temperature, per month
+  RG_Summary(Dat,"Power","DATE_month_year")
+  RG_Summary(Dat,"Temperature","DATE_month_year")
+  
+  # Summary, Power & Temperature, per day of the week 
+  RG_Summary(Dat,"Power","DATE_day_week")
+  
+  # Summary, Power & Temperature, per hour of the day
+  RG_Summary(Dat,"Power","DATE_hour_day")
+  # RG_Summary(Dat,"Temperature","DATE_hour_day")
+  
+  # Same as preceding, but only for winter months
+  subset_Dat<-Dat[Dat$DATE_month_year %in% c(1, 2, 3, 11, 12),]
+  RG_Summary(subset_Dat,"Power","DATE_month_year")
+  RG_Summary(subset_Dat,"Temperature","DATE_month_year")
+  
+  RG_Summary(subset_Dat,"Power","DATE_day_week")
+  
+  RG_Summary(subset_Dat,"Power","DATE_hour_day")
+  # RG_Summary(subset_Dat,"Temperature","DATE_hour_day")
+  
+  rm (month_list, var, week_list, subset_Dat)
+```
+
+## Insight
+
+Some data is missing around week 40.
+Also (from the heatmap) it seems that the initiation day of the week is shifted.
+
+Heat load depends on outdoor temperature and solar irradiation
+Main dependency on temperature (as temperature and solar irradiation are partially correlated)
+
+There is a minimum heat load during the hot/summer months
+There is a linear heat load vs temperature period in the cold/winter months
+There is an intermediate period in mild/spring/autumn months
+
+Daily periods vary due to a set of facts/schedules (building dependent)
+office hours (~9-17h)
+night setback (~22-23h)
+weekly occupation pattern
+
+Overall, two main patterns are identifiable.
+
+# Resampled Data
+Execution not strictly required
+
+Resampled data to day, week and month
+the function "mean" is used to ensure that the system calculates meaningful values even with some data loss
+
+``` {r data resampling, include=FALSE}
+Dat.rs.d<-RG_resample(Dat,"DATE_day_year", c("Temperature", "Solar.Irradiation", "Power"), c("mean","mean","mean"))
+Dat.rs.w<-RG_resample(Dat,"DATE_week_year", c("Temperature", "Solar.Irradiation", "Power"), c("mean","mean","mean"))
+Dat.rs.m<-RG_resample(Dat,"DATE_month_year", c("Temperature", "Solar.Irradiation", "Power"), c("mean","mean","mean"))
+```
+
+## Inspection of resampled data
+Execution not strictly required
+
+``` {r inspection of resampled data}
+  RG_HeatMap(Dat.rs.d[,
+                      c("DATE_day_week",
+                        "DATE_week_year",
+                        "Power")
+  ])
+  
+  RG_inspect_data (Dat.rs.d,
+                   Var_list_input=c("Temperature","Power"),
+                   week_list_input=c(),
+                   month_list_input=c(1,3,5,7,9,11)
+  )
+  
+  RG_inspect_data (Dat.rs.w,
+                   Var_list_input=c("Temperature","Power"),
+                   week_list_input=c(),
+                   month_list_input=c()
+  )  
+  
+  RG_inspect_data (Dat.rs.m,
+                   Var_list_input=c("Temperature","Power"),
+                   week_list_input=c(),
+                   month_list_input=c()
+  )
+```
+
+## Insight
+
+Daily averaged data allows to see the main trends (except for intra-daily issues)
+There is a minimum heat load during the hot/summer months
+There is a linear heat load vs temperature period in the cold/winter months
+There is an intermediate period in mild/spring/autumn months
+
+Daily periods vary due to a set of facts/schedules (building dependent)
+weekly occupation pattern
+
+In cold months, two sets of linear dependencies against temperature can be seen. Probably related to weekday / weekend patterns.
+
+Weekly data allows to see the main trends (except for intra-daily & inter-daily issues)
+There is a minimum heat load during the hot/summer months
+There is a linear heat load vs temperature period in the cold/winter months
+There is an intermediate period in mild/spring/autumn months
+
+ONLY ONE linear dependency against temperature can be seen (as opposed to the information with daily data)
+
+Monthly data provides ~the same information as weekly data, but with fewer points.
+
+
+``` {r remove resampled data, include=FALSE}
+rm (Dat.rs.d, Dat.rs.w, Dat.rs.m)
+```
+
+# Initial Changepoint model and outlier detection
+A model is trained  for the dataset. It consist of a changepoint model segmented for each hour of the week (168 models)
+Then the observations too far from the model are discarded.
+This process takes in the range of 3 minutes.
+
+``` {r changepoint model and outlier detection, include=FALSE}
+# Get modelCreate a data frame with the parameters of changepoint models for each hour of the week
+Changepoint_Parameters_summary<-data.frame(DATE_hour_week = sort(unique(Dat$DATE_hour_week)),
+                                   slope_Temp     = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   slope_Irrad    = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   intercept      = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   minimum        = rep(NA,length(unique(Dat$DATE_hour_week))))
+
+# Update data frame with final format
+Dat$Power_fitted     <-rep(NA, dim(Dat)[1])
+Dat$Power_residuals  <-rep(NA, dim(Dat)[1])
+Dat$IS_Outlier       <-rep(NA, dim(Dat)[1])
+
+#Empty dataframe for output
+# will be appended in each iteration & then sorted
+Dat.output <- Dat[0,]
+
+# Subset by hour of the week
+start_time <- Sys.time()
+
+for (i in Changepoint_Parameters_summary$DATE_hour_week)
+{
+  Dat.subs.hw<-Dat[Dat$DATE_hour_week==i,]
+  
+  # Get the optimal changepoint function parameters for each subset
+  # Optimal = minimum absolute error
+  
+  opt<-RG_Detect_Outlier_Model_Based_Ch_3P (Dat.subs.hw, 2, 50, 100)
+  
+  Dat.subs.hw<-opt[[1]]
+  Dat.output<- rbind(Dat.output,Dat.subs.hw)
+  
+  Changepoint_Parameters_i<-opt[[2]]
+  Changepoint_Parameters_summary[Changepoint_Parameters_summary$DATE_hour_week==i,2:5]<-Changepoint_Parameters_i
+  
+  
+  # Control of process
+  current_time <- Sys.time()
+  elapsed_time <- current_time - start_time
+  estimated_time <- elapsed_time *
+    Changepoint_Parameters_summary$DATE_hour_week[
+      length(Changepoint_Parameters_summary$DATE_hour_week)]  / i
+
+
+  writeLines (paste ("Progress: ", i, " / ",
+                    Changepoint_Parameters_summary$DATE_hour_week[
+                     length(Changepoint_Parameters_summary$DATE_hour_week)],
+                    ". elapsed time: ", elapsed_time,
+                    ", estimated time: ", estimated_time,
+                    sep=""))
+}
+
+# Reorder output dataframe by date
+Dat<-Dat.output[order(Dat.output$DATE),]
+
+rm(Dat.output, opt, Changepoint_Parameters_i,Dat.subs.hw, i)
+rm(current_time, elapsed_time, estimated_time)
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Changepoint_Parameters_summary,"Changepoint_Parameters_summary_v1.csv")
+setwd(WD)
+
+# Keep record of the dataset
+Dat1<-Dat
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Dat1,"Dat1.csv")
+setwd(WD)
+```
+
+## Inspection of the changepoint model
+Before discarding of outliers
+
+``` {r inspection of the changepoint model}
+Changepoint_plot_coordinates<-Changepoint_Parameters_summary
+
+Changepoint_plot_coordinates$x1<- -50
+Changepoint_plot_coordinates$y1<- Changepoint_plot_coordinates$intercept+Changepoint_plot_coordinates$slope_Temp*Changepoint_plot_coordinates$x1
+
+Changepoint_plot_coordinates$x2<- -(Changepoint_plot_coordinates$intercept-Changepoint_plot_coordinates$minimum)/Changepoint_plot_coordinates$slope_Temp
+Changepoint_plot_coordinates$y2<-  Changepoint_plot_coordinates$minimum
+
+Changepoint_plot_coordinates$x3<-  50
+Changepoint_plot_coordinates$y3<-  Changepoint_plot_coordinates$minimum
+
+plot(c(-50,50),c(0,max (Changepoint_plot_coordinates$y1)),
+     type="n",
+     xlab="Temperature [C]",
+     ylab="Heat Load [kWh]")
+
+for (ni in Changepoint_plot_coordinates$DATE_hour_week)
+{
+  bool<-Changepoint_plot_coordinates$DATE_hour_week==ni
+  varX<-c(Changepoint_plot_coordinates$x1[bool],Changepoint_plot_coordinates$x2[bool],Changepoint_plot_coordinates$x3[bool])
+  varY<-c(Changepoint_plot_coordinates$y1[bool],Changepoint_plot_coordinates$y2[bool],Changepoint_plot_coordinates$y3[bool])
+  
+  lines (varX,varY)
+}
+
+rm(Changepoint_plot_coordinates, ni, varX, varY, bool)
+```
+
+## Insight
+Overall, the same two main patterns are identified, with some specificities for each hour.
+
+It seems that for some specific hours, a third pattern can be observed. Without heat loads for loads above ~0ºC. (This only happens sometimes, based on the genetic algorithm identification process). 
+
+``` {r save & load workspace}
+# save.image(paste(WD,"Workspace.RData",sep="/"))
+# 
+# WD<-getwd()
+# load(paste(WD,"Workspace.RData",sep="/"))
+```
+
+# Repair dataset
+The current dataset only contains observations for those timestamps where an original observation was available in the dataset.
+This chunk of code generates an empty observation for every hour in between the initial and final timestamps.
+
+The content of the observations is also updated as follows:
+
+- IS_Outlier: TRUE/FALSE/CORRECTED (only energy is corrected)
+
+- IS_Missing: TRUE/FALSE/CORRECTED (both energy and climate are corrected)
+
+- Power_Corrected
+
+Corrections are performed stepwise.
+
+## Interpolation
+<1h voids, with data available for the -1 .. 1h slot on the previous and following weeks.
+
+``` {r fill 1h gaps, include=FALSE}
+# Fill 1h voids with observations available for interpolation
+  STRING_date<-"DATE"
+  VEC_vars<-c("Holiday",
+              "Temperature",
+              "Solar.Irradiation",
+              "Power",
+              "Power_fitted",
+              "IS_Outlier")
+  VEC_repair<-c("Power")
+  
+  Dat<-RG_Repair_1h_double_side (Dat,STRING_date,VEC_vars,VEC_repair)
+  rm(STRING_date, VEC_vars, VEC_repair)
+  
+# Keep record of the dataset
+Dat2<-Dat
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Dat2,"Dat2.csv")
+setwd(WD)
+```
+
+<5h voids, with data available for the -5 .. 5h slot on the previous and following weeks.
+This is done stepwise. First 2h voids, then 3h voids,...
+
+``` {r fill gaps < than 5 hours, include=FALSE}
+# Fill 5h voids with observations available for interpolation
+  STRING_date<-"DATE"
+  VEC_vars<-c("Holiday",
+              "Temperature",
+              "Solar.Irradiation",
+              "Power",
+              "Power_fitted",
+              "IS_Outlier")
+  VEC_repair<-c("Power")
+  
+  num_hours_max <- 5
+  for (cont_num_hours in 2:num_hours_max)
+  {
+    num_hours<-cont_num_hours
+    for (cont_num_hour_pre in 1: num_hours)
+    {
+      nh_pre<-cont_num_hour_pre
+      nh_post<-num_hours+1-nh_pre
+      Dat<-RG_Repair_multiple_h_double_side (Dat,STRING_date,VEC_vars,VEC_repair, nh_pre, nh_post)
+    }
+  }
+  
+rm(STRING_date, VEC_vars, VEC_repair)
+rm(cont_num_hour_pre, cont_num_hours, nh_post, nh_pre, num_hours, num_hours_max)
+
+# Keep record of the dataset
+Dat3<-Dat
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Dat3,"Dat3.csv")
+setwd(WD)
+```
+
+## Insight
+
+In the range of 5% of data is identified as outliers.
+The data filling process are able to reconstruct 30% of the outlier data. This is mostly achieved through the 1h void filling process.
+
+# Recalculate changepoint
+Once outliers are discarded and data is (partially) repaired.
+This process takes in the range of 3 minutes.
+
+``` {r changepoint model 2, include=FALSE}
+# Get modelCreate a data frame with the parameters of changepoint models for each hour of the week
+Changepoint_Parameters_summary_v2<-data.frame(DATE_hour_week = sort(unique(Dat$DATE_hour_week)),
+                                   slope_Temp     = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   slope_Irrad    = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   intercept      = rep(NA,length(unique(Dat$DATE_hour_week))),
+                                   minimum        = rep(NA,length(unique(Dat$DATE_hour_week))))
+
+# Define a new dataframe. Format as Dat, but data after repair (Dat_repaired)
+names(Dat)[c(15:19,21)]<-"kk"
+names(Dat)[20]<-"Power"
+Dat<-Dat[,names(Dat)%in%names(Dat0)]
+
+# Update data frame with final format
+Dat$Power_fitted     <-rep(NA, dim(Dat)[1])
+Dat$Power_residuals  <-rep(NA, dim(Dat)[1])
+Dat$IS_Outlier       <-rep(NA, dim(Dat)[1])
+
+#Empty dataframe for output
+# will be appended in each iteration & then sorted
+Dat.output <- Dat[0,]
+
+# Subset by hour of the week
+start_time <- Sys.time()
+
+for (i in Changepoint_Parameters_summary_v2$DATE_hour_week)
+{
+  Dat.subs.hw<-Dat[Dat$DATE_hour_week==i,]
+  
+  # Get the optimal changepoint function parameters for each subset
+  # Optimal = minimum absolute error
+  
+  opt<-RG_Detect_Outlier_Model_Based_Ch_3P (Dat.subs.hw, 2, 50, 100)
+  
+  Dat.subs.hw<-opt[[1]]
+  Dat.output<- rbind(Dat.output,Dat.subs.hw)
+  
+  Changepoint_Parameters_i<-opt[[2]]
+  Changepoint_Parameters_summary_v2[Changepoint_Parameters_summary_v2$DATE_hour_week==i,2:5]<-Changepoint_Parameters_i
+  
+  # Control of process
+  current_time <- Sys.time()
+  elapsed_time <- current_time - start_time
+  estimated_time <- elapsed_time *
+    Changepoint_Parameters_summary_v2$DATE_hour_week[
+      length(Changepoint_Parameters_summary_v2$DATE_hour_week)]  / i
+
+
+  writeLines (paste ("Progress: ", i, " / ",
+                    Changepoint_Parameters_summary_v2$DATE_hour_week[
+                   length(Changepoint_Parameters_summary_v2$DATE_hour_week)],
+                    ". elapsed time: ", elapsed_time,
+                    ", estimated time: ", estimated_time,
+                    sep=""))
+}
+
+# Reorder output dataframe by date
+Dat<-Dat.output[order(Dat.output$DATE),]
+
+rm(Dat.output, opt, Changepoint_Parameters_i,Dat.subs.hw, i)
+rm(current_time, elapsed_time, estimated_time)
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Changepoint_Parameters_summary_v2,"Changepoint_Parameters_summary_v2.csv")
+setwd(WD)
+
+# Keep record of the dataset
+Dat4<-Dat
+
+# Write output to file
+setwd(paste(WD,"output",sep="/"))
+write.csv(Dat4,"Dat4.csv")
+setwd(WD)
+```
+
+## Inspection of the changepoint model
+After discarding of outliers
+
+``` {r inspection of the changepoint model 2}
+Changepoint_plot_coordinates<-Changepoint_Parameters_summary_v2
+
+Changepoint_plot_coordinates$x1<- -50
+Changepoint_plot_coordinates$y1<- Changepoint_plot_coordinates$intercept+Changepoint_plot_coordinates$slope_Temp*Changepoint_plot_coordinates$x1
+
+Changepoint_plot_coordinates$x2<- -(Changepoint_plot_coordinates$intercept-Changepoint_plot_coordinates$minimum)/Changepoint_plot_coordinates$slope_Temp
+Changepoint_plot_coordinates$y2<-  Changepoint_plot_coordinates$minimum
+
+Changepoint_plot_coordinates$x3<-  50
+Changepoint_plot_coordinates$y3<-  Changepoint_plot_coordinates$minimum
+
+plot(c(-50,50),c(0,max (Changepoint_plot_coordinates$y1)),
+     type="n",
+     xlab="Temperature [C]",
+     ylab="Heat Load [kWh]")
+
+for (ni in Changepoint_plot_coordinates$DATE_hour_week)
+{
+  bool<-Changepoint_plot_coordinates$DATE_hour_week==ni
+  varX<-c(Changepoint_plot_coordinates$x1[bool],Changepoint_plot_coordinates$x2[bool],Changepoint_plot_coordinates$x3[bool])
+  varY<-c(Changepoint_plot_coordinates$y1[bool],Changepoint_plot_coordinates$y2[bool],Changepoint_plot_coordinates$y3[bool])
+  
+  lines (varX,varY)
+}
+
+rm(Changepoint_plot_coordinates, ni, varX, varY)
+```
+
+``` {r save & load workspace 2}
+save.image(paste(WD,"Workspace.RData",sep="/"))
+
+WD<-getwd()
+load(paste(WD,"Workspace.RData",sep="/"))
+```
+
+# Model statistics
+
+``` {r model statistics}
+num_outliers<-sum(Dat1$IS_Outlier)
+prop_outliers<-num_outliers/dim(Dat1)[1]
+
+num_repaired_1<-sum(Dat2$IS_Repaired)
+prop_repaired_1<-num_repaired_1/num_outliers
+
+num_repaired_2<-sum(Dat3$IS_Repaired)
+prop_repaired_2<-num_repaired_2/num_outliers
+
+plot(Dat3$Power,Dat3$Power_corrected,
+     xlab="Power.original [kWh]", ylab="Power.corrected [kWh]")
+
+plot(cumsum(Dat2$Power)/sum(Dat2$Power),
+     cumsum(Dat2$Power_corrected)/sum(Dat2$Power_corrected),
+     xlab="Cumulated Energy.original [kWh]", ylab="Cumulated Energy.corrected [kWh]")
+
+Power_orig<-sum(Dat3$Power)
+Power_corrected<-sum(Dat3$Power_corrected)
+Power_correction<-(Power_corrected-Power_orig)/Power_orig
+
+R2_orig<-cor(Dat1$Power_fitted,Dat1$Power)
+RMSE_orig<-rmse(Dat1$Power_fitted,Dat1$Power)
+MAE_orig<-mae(Dat1$Power_fitted,Dat1$Power)
+Power_orig_by_hour<-aggregate(Power ~ DATE_hour_day, data=Dat1, mean)[,2]
+
+Dat1_no_outlier<-Dat1[!Dat1$IS_Outlier,]
+R2_no_outlier<-cor(Dat1_no_outlier$Power_fitted,Dat1_no_outlier$Power)
+RMSE_no_outlier<-rmse(Dat1_no_outlier$Power_fitted,Dat1_no_outlier$Power)
+MAE_no_outlier<-mae(Dat1_no_outlier$Power_fitted,Dat1_no_outlier$Power)
+Power_no_outlier_by_hour<-aggregate(Power ~ DATE_hour_day, data=Dat1_no_outlier, mean)[,2]
+
+Dat3_repaired<-Dat3[!Dat3$IS_Outlier-Dat3$IS_Repaired,]
+R2_repaired<-cor(Dat3_repaired$Power_fitted,Dat3_repaired$Power_corrected)
+RMSE_repaired<-rmse(Dat3_repaired$Power_fitted,Dat3_repaired$Power_corrected)
+MAE_repaired<-mae(Dat3_repaired$Power_fitted,Dat3_repaired$Power_corrected)
+Power_repaired_by_hour<-aggregate(Power_corrected ~ DATE_hour_day, data=Dat3_repaired, mean)[,2]
+
+Dat4_no_outlier<-Dat1[!Dat4$IS_Outlier,]
+R2_repaired_retrained<-cor(Dat4_no_outlier$Power_fitted,Dat4_no_outlier$Power)
+RMSE_repaired_retrained<-rmse(Dat4_no_outlier$Power_fitted,Dat4_no_outlier$Power)
+MAE_repaired_retrained<-mae(Dat4_no_outlier$Power_fitted,Dat4_no_outlier$Power)
+Power_repaired_retrained_by_hour<-aggregate(Power ~ DATE_hour_day, data=Dat4_no_outlier, mean)[,2]
+
+
+R2<-c(R2_orig, R2_no_outlier, R2_repaired, R2_repaired_retrained)
+RMSE<-c(RMSE_orig, RMSE_no_outlier, RMSE_repaired, RMSE_repaired_retrained)
+MAE<-c(MAE_orig, MAE_no_outlier, MAE_repaired, MAE_repaired_retrained)
+
+legend <- c("Orig.", "Out.Rm", ".Rep", "Retr")
+
+par(mfrow=c(1,3))
+barplot(R2,     ylim=c(0,1),     names.arg=legend,     ylab="R2")
+barplot(RMSE,   ylim=c(0,20),    names.arg=legend,     ylab="RMSE")
+barplot(MAE,    ylim=c(0,10),    names.arg=legend,     ylab="MAE")
+par(mfrow=c(1,1))
+
+legend<- c("Original", "Outlier Removed", "Outlier Repaired", "Retrained")
+
+plot(Power_orig_by_hour, type="n", ylab="Power, kWh", xlab="hour of the day", ylim=c(0,75))
+lines(Power_orig_by_hour, col="black")
+lines(Power_no_outlier_by_hour, col="red")
+lines(Power_repaired_by_hour, col="green")
+lines(Power_repaired_retrained_by_hour, col="blue")
+legend("topright", legend, col=c("black","red","green","blue"),lty=1)
+
+
+```
+
+## Insight
+(figures are dependent on the parametrization of the changepoint model identification process)
+
+Power corrections are performed for ca 130 data points. This is a relatively small number of points. Its impact in the cumulated power curve is not relevant.
+
+Changepoint models seem to be reasonable ways to model heat load data.
+Overall, good performance metrics are achieved in all cases (R2>0.9; RMSE<15.9, MAE<10 in all cases)
+
+Performance is slightly increased when outliers are removed. Outlier repair and model retraining does not seem to have a significant input.

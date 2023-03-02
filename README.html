@@ -1,0 +1,377 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+
+<style>/*
+ * https://bitbucket.org/kevinburke/markdowncss
+ *
+ * Copyright 2011 Kevin Burke unless otherwise noted.
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
+ *
+ *   Some content is copyrighted by Twitter, Inc., and also released under an
+ *   Apache License; these sections are noted in the source.
+ */
+body{
+    margin: 0 auto;
+    font-family: Georgia, Palatino, serif;
+    color: #444444;
+    line-height: 1;
+    max-width: 960px;
+    padding: 30px;
+}
+h1, h2, h3, h4 {
+    color: #111111;
+    font-weight: 400;
+}
+h1, h2, h3, h4, h5, p {
+    margin-bottom: 24px;
+    padding: 0;
+}
+h1 {
+    font-size: 48px;
+}
+h2 {
+    font-size: 36px;
+    /* The bottom margin is small. It's designed to be used with gray meta text
+     * below a post title. */
+    margin: 24px 0 6px;
+}
+h3 {
+    font-size: 24px;
+}
+h4 {
+    font-size: 21px;
+}
+h5 {
+    font-size: 18px;
+}
+a {
+    color: #0099ff;
+    margin: 0;
+    padding: 0;
+    vertical-align: baseline;
+}
+a:hover {
+    text-decoration: none;
+    color: #ff6600;
+}
+a:visited {
+    color: purple;
+}
+ul, ol {
+    padding: 0;
+    margin: 0;
+}
+li {
+    line-height: 24px;
+}
+li ul, li ul {
+    margin-left: 24px;
+}
+p, ul, ol {
+    font-size: 16px;
+    line-height: 24px;
+    max-width: 540px;
+}
+pre {
+    padding: 0px 24px;
+    max-width: 800px;
+    white-space: pre-wrap;
+}
+code {
+    font-family: Consolas, Monaco, Andale Mono, monospace;
+    line-height: 1.5;
+/*    font-size: 13px;*/
+}
+aside {
+    display: block;
+    float: right;
+    width: 390px;
+}
+blockquote {
+    border-left:.5em solid #eee;
+    padding: 0 2em;
+    margin-left:0;
+    max-width: 476px;
+}
+blockquote  cite {
+    font-size:14px;
+    line-height:20px;
+    color:#bfbfbf;
+}
+blockquote cite:before {
+    content: '\2014 \00A0';
+}
+
+blockquote p {  
+    color: #666;
+    max-width: 460px;
+}
+hr {
+    width: 540px;
+    text-align: left;
+    margin: 0 auto 0 0;
+    color: #999;
+}
+
+/* Code below this line is copyright Twitter Inc. */
+
+button,
+input,
+select,
+textarea {
+  font-size: 100%;
+  margin: 0;
+  vertical-align: baseline;
+  *vertical-align: middle;
+}
+button, input {
+  line-height: normal;
+  *overflow: visible;
+}
+button::-moz-focus-inner, input::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+button,
+input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  cursor: pointer;
+  -webkit-appearance: button;
+}
+input[type=checkbox], input[type=radio] {
+  cursor: pointer;
+}
+/* override default chrome & firefox settings */
+input:not([type="image"]), textarea {
+  -webkit-box-sizing: content-box;
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+}
+
+input[type="search"] {
+  -webkit-appearance: textfield;
+  -webkit-box-sizing: content-box;
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+}
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+label,
+input,
+select,
+textarea {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: normal;
+  margin-bottom: 18px;
+}
+input[type=checkbox], input[type=radio] {
+  cursor: pointer;
+  margin-bottom: 0;
+}
+input[type=text],
+input[type=password],
+textarea,
+select {
+  display: inline-block;
+  width: 210px;
+  padding: 4px;
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 18px;
+  height: 18px;
+  color: #808080;
+  border: 1px solid #ccc;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+}
+select, input[type=file] {
+  height: 27px;
+  line-height: 27px;
+}
+textarea {
+  height: auto;
+}
+
+/* grey out placeholders */
+:-moz-placeholder {
+  color: #bfbfbf;
+}
+::-webkit-input-placeholder {
+  color: #bfbfbf;
+}
+
+input[type=text],
+input[type=password],
+select,
+textarea {
+  -webkit-transition: border linear 0.2s, box-shadow linear 0.2s;
+  -moz-transition: border linear 0.2s, box-shadow linear 0.2s;
+  transition: border linear 0.2s, box-shadow linear 0.2s;
+  -webkit-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  -moz-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+input[type=text]:focus, input[type=password]:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(82, 168, 236, 0.8);
+  -webkit-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
+  -moz-box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 8px rgba(82, 168, 236, 0.6);
+}
+
+/* buttons */
+button {
+  display: inline-block;
+  padding: 4px 14px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: #0064cd;
+  background-repeat: repeat-x;
+  background-image: -khtml-gradient(linear, left top, left bottom, from(#049cdb), to(#0064cd));
+  background-image: -moz-linear-gradient(top, #049cdb, #0064cd);
+  background-image: -ms-linear-gradient(top, #049cdb, #0064cd);
+  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #049cdb), color-stop(100%, #0064cd));
+  background-image: -webkit-linear-gradient(top, #049cdb, #0064cd);
+  background-image: -o-linear-gradient(top, #049cdb, #0064cd);
+  background-image: linear-gradient(top, #049cdb, #0064cd);
+  color: #fff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+  border: 1px solid #004b9a;
+  border-bottom-color: #003f81;
+  -webkit-transition: 0.1s linear all;
+  -moz-transition: 0.1s linear all;
+  transition: 0.1s linear all;
+  border-color: #0064cd #0064cd #003f81;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+}
+button:hover {
+  color: #fff;
+  background-position: 0 -15px;
+  text-decoration: none;
+}
+button:active {
+  -webkit-box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+  -moz-box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+button::-moz-focus-inner {
+  padding: 0;
+  border: 0;
+}
+</style>
+</head>
+<body>
+<h1 id="HEAT.LOAD.CHARACTERISATION">HEAT LOAD CHARACTERISATION</h1>
+
+<p>Side project by Roberto Garay Martinez.<br/>
+<a href="https://github.com/robgaray/">https://github.com/robgaray/</a><br/>
+<a href="https://robertogaray.com/">https://robertogaray.com/</a></p>
+
+<p>Overall inspection and modelling of head loads in buildings.</p>
+
+<h1 id="Inspiration">Inspiration</h1>
+
+<p>Over the years, I have worked together with several colleagues and students in experimental heat load characterisation. With a variety of approaches and datasets. This script tries to put some of this knowledge in a more coherent way.</p>
+
+<p>Obviously, this could not have been possible without my previous works with (in chronological order) Beñat Arregi, Mikel Lumbreras, Antonio Garrido, Markel Eguizabal, Ivan Flores, Olaia Eguiarte and Alaeddine Hajri. I have probably discussed these methods with several other researchers in the course of the last 4-5 years, but I sincerely can not remember with whom.</p>
+
+<p>To all of them, thank you.</p>
+
+<h1 id="Context.evolution">Context evolution</h1>
+
+<p>The method proposed here takes its roots im methods such as PRISM (1970-80s)and ASHRAE changepoint (1990s). I initiated these kind of analysis around 2015. Most of the dataset I use now are less than 5 years old.</p>
+
+<p>In this period of time, the available data has increased exponentially, both in terms of availability, resolution and reliability.</p>
+
+<h1 id="Data.Sources">Data Sources</h1>
+
+<p>Based on data provided by GREN TARTU &amp; used in several research papers &amp; seminars.<br/>
+<strong>Papers</strong><br/>
+<a href="https://doi.org/10.1016/j.energy.2021.122318">https://doi.org/10.1016/j.energy.2021.122318</a></p>
+
+<p><a href="http://dx.doi.org/10.2139/ssrn.4186449">http://dx.doi.org/10.2139/ssrn.4186449</a></p>
+
+<p><a href="https://doi.org/10.1016/j.egyr.2022.10.212">https://doi.org/10.1016/j.egyr.2022.10.212</a></p>
+
+<p><a href="https://doi.org/10.3390/environsciproc2021011033">https://doi.org/10.3390/environsciproc2021011033</a></p>
+
+<p><a href="https://doi.org/10.23919/SpliTech52315.2021.9566420">https://doi.org/10.23919/SpliTech52315.2021.9566420</a></p>
+
+<p><a href="http://doi.org/10.1088/1755-1315/588/3/032007">http://doi.org/10.1088/1755-1315/588/3/032007</a></p>
+
+<p><strong>Seminars</strong><br/>
+<a href="https://github.com/robgaray/SMACCS_Building_Heat_Load_Analysis.git">https://github.com/robgaray/SMACCS_Building_Heat_Load_Analysis.git</a></p>
+
+<p><a href="https://github.com/robgaray/EESIA_Analisis_Consumo_2021_Publico.git">https://github.com/robgaray/EESIA_Analisis_Consumo_2021_Publico.git</a></p>
+
+<p>Climate data is taken from a a publicly available source at the University of Tartu.<br/>
+<a href="https://meteo.physic.ut.ee/">https://meteo.physic.ut.ee/</a></p>
+
+<p>Special thanks to GREN TARTU for providing the data, and the University of Tartu for making their wether data available to the world.</p>
+
+<h1 id="Process">Process</h1>
+
+<p>Data from ONE building and local climate is used and the following process is performed.</p>
+
+<ul>
+<li><p>Data Inspection</p></li>
+<li><p>Development of a changepoint model</p></li>
+<li><p>Identification of outliers. Based on the residuals of changepoint model</p></li>
+<li><p>Data imputation for 1h &amp; 5h gaps. Based on boundary of the data  on the same day in the preceding and following week</p></li>
+<li><p>retraining  of changepoint model</p></li>
+<li><p>Statistics</p></li>
+</ul>
+
+
+<h1 id="Future.steps">Future steps</h1>
+
+<ul>
+<li>Advanced imputation processes to repair larger voids.
+
+<ul>
+<li>The current version just makes linear interpollations/splines based on very-close contextual data. In this case, preceding and following data point, as well as information over the same time period of the day in the previous and following week. 8 data points in total.</li>
+<li>Further dynamic analysis may be required for larger data voids.</li>
+</ul>
+</li>
+<li>New changepoint approach. Common slope, but adaptable offset.
+
+<ul>
+<li>The current version calibrates 7 x 24 individual changepoint models. This results in a very large number of paramters (in the range of 600). Given the available data in the dataset (~8000 observations), there is a high risk of overfitting.</li>
+<li>A potential alternative may be to develop a single changepoint model, with 7 x 24 offsets that account for specific building usage patterns. By doing so, the number of parameters will be in the range of ~200.</li>
+<li>Alterntively, typical pattern clusterization may result in further reducing the number of parameters by ~50% to ~300 or ~100 depending on which of the preceding approaches are used.</li>
+</ul>
+</li>
+<li>Short-term forecasting
+
+<ul>
+<li>This method delivers quite stable models, but its prediction does not consider the short-term history of the building (i.e. it comes from a very cold night,&hellip;) so its performance for forecasting could be improved.</li>
+</ul>
+</li>
+</ul>
+
+</body>
+</html>
